@@ -11,6 +11,8 @@ use Bernard\QueueFactory;
 use Bernard\QueueFactory\PersistentFactory;
 use Building\Domain\Aggregate\Building;
 use Building\Domain\Command;
+use Building\Domain\DomainEvent\CheckedInAnomalyDetected;
+use Building\Domain\DomainEvent\CheckedOutAnomalyDetected;
 use Building\Domain\Repository\BuildingRepositoryInterface;
 use Building\Infrastructure\Repository\BuildingRepository;
 use Doctrine\DBAL\Connection;
@@ -40,6 +42,7 @@ use Prooph\ServiceBus\Message\Bernard\BernardMessageProducer;
 use Prooph\ServiceBus\Message\Bernard\BernardSerializer;
 use Prooph\ServiceBus\MessageBus;
 use Prooph\ServiceBus\Plugin\ServiceLocatorPlugin;
+use Rhumsaa\Uuid\Uuid;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Zend\ServiceManager\ServiceManager;
 
@@ -213,6 +216,31 @@ return new ServiceManager([
                 $buildings->get($command->buildingId())->checkOutUser($command->userName());
             };
         },
+        Command\NotifySecurityOfCheckOutAnomaly::class => function (ContainerInterface $container) : callable {
+            return function (Command\NotifySecurityOfCheckOutAnomaly $command) {
+                error_log($command->userName() . ' Anomaly detected');
+            };
+        },
+
+        CheckedInAnomalyDetected::class . '-listeners' => function (ContainerInterface $container) {
+            return [
+                function (CheckedInAnomalyDetected $event) {
+                    error_log($event->userName());
+                }
+            ];
+        },
+
+        CheckedOutAnomalyDetected::class . '-listeners' => function (ContainerInterface $container) {
+            return [
+                function (CheckedOutAnomalyDetected $event) {
+//                    $commandBus->dispatch(Command\NotifySecurityOfCheckOutAnomaly::with(
+//                        Uuid::fromString($event->buildingId()),
+//                        $event->userName()
+//                    ));
+                }
+            ];
+        },
+
         BuildingRepositoryInterface::class => function (ContainerInterface $container) : BuildingRepositoryInterface {
             return new BuildingRepository(
                 new AggregateRepository(
