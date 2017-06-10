@@ -22,7 +22,7 @@ final class Building extends AggregateRoot
      */
     private $name;
 
-    private $users;
+    private $checkInUsers;
 
     public static function new(string $name) : self
     {
@@ -40,6 +40,10 @@ final class Building extends AggregateRoot
 
     public function checkInUser(string $username)
     {
+        if (array_key_exists($username, $this->checkInUsers)) {
+            throw new \Exception('Already checkIn');
+        }
+
         $this->recordThat(UserWasCheckedIn::occur(
             $this->aggregateId(),
             [
@@ -50,6 +54,10 @@ final class Building extends AggregateRoot
 
     public function checkOutUser(string $username)
     {
+        if (!array_key_exists($username, $this->checkInUsers)) {
+            throw new \Exception('Already checkout');
+        }
+
         $this->recordThat(UserWasCheckedOut::occur(
             $this->aggregateId(),
             [
@@ -60,11 +68,12 @@ final class Building extends AggregateRoot
 
     public function whenUserWasCheckedIn(UserWasCheckedIn $event)
     {
-        $this->users[] = $event->userName();
+        $this->checkInUsers[$event->userName()] = null;
     }
 
     public function whenUserWasCheckedOut(UserWasCheckedOut $event)
     {
+        unset($this->checkInUsers[$event->userName()]);
     }
 
     public function whenNewBuildingWasRegistered(NewBuildingWasRegistered $event)
